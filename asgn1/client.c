@@ -37,13 +37,13 @@ int main(){
         char newline;
         scanf("%c",&newline);
         int len = strlen(expression);
-        printf("len = %d\nexprsssion: %s hehe%c",len,expression,newline);
+        printf("len = %d\nexprsssion: %s hehe%c\n",len,expression,newline);
         if(len==2){
             if(expression[0]=='-' && expression[1]=='1'){
                 break;
             }
         }
-
+        printf("sending\n");
         int bytesSent = 0;
         char buffer[BUFFER_SIZE];
         while(len>0){
@@ -63,7 +63,7 @@ int main(){
                 lenbuf = len;
             }
             int returnValOfSend = send(sockFD,buffer,lenbuf+1,0);
-            printf("returnValOfSend: %d",returnValOfSend);
+            printf("returnValOfSend: %d\n",returnValOfSend);
             len -= (lenbuf);
             bytesSent += lenbuf;
         }
@@ -72,8 +72,8 @@ int main(){
             buffer[i] = '\0';
         }
         int returnValOfRecv = recv(sockFD,buffer,100,0);
-        printf("returnValOfRecv: %d",returnValOfRecv);
-        printf("Value of expression: %s = %s",expression,buffer);
+        printf("returnValOfRecv: %d\n",returnValOfRecv);
+        printf("Value of expression: %s = %s\n",expression,buffer);
     }
-    printf("Byeee, I hope you were able to solve all the expressions!!");
+    printf("Byeee, I hope you were able to solve all the expressions!!\n");
 }
