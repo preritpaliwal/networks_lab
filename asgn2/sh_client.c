@@ -1,3 +1,10 @@
+/*
+Name: Prerit Paliwal
+Roll Number: 20CS10046
+Assignment 2
+Question 2
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -11,12 +18,14 @@
 #define IO_BUFFER_LEN 5
 #define MAX_USERNAME_LEN 25
 
+// function to clean the buffer
 void cleanBuffer(char *buffer,int len){
     for(int i = 0;i<len;i++){
         buffer[i] = '\0';
     }
 }
 
+// function to send msgs in small chunks
 int sendMsg(int fd,char *msg){
     int len = strlen(msg);
     char buffer[IO_BUFFER_LEN];
@@ -51,6 +60,7 @@ int sendMsg(int fd,char *msg){
     return lenSent+1;
 }
 
+// function to read msg in small chunks
 int readMsg(int fd, char *msg){
     cleanBuffer(msg,MAX_LEN);
     int read = 1;
@@ -78,7 +88,8 @@ int readMsg(int fd, char *msg){
     return lenRead;
 }
 
-void stripInStart(char *buffer,int len){
+// function to remove starting white spaces of a command
+void stripSpaces(char *buffer,int len){
     int dif = 0;
     for(int i = 0;i<len;i++){
         if(buffer[i]==' '){
@@ -93,6 +104,18 @@ void stripInStart(char *buffer,int len){
             buffer[i-dif] = buffer[i];
         }
     }
+    len = strlen(buffer);
+    dif = 0;
+    for(int i = len-1;i>=0;i--){
+        if(buffer[i]==' '){
+            dif++;
+        }
+        else{
+            break;
+        }
+    }
+    len -= dif;
+    buffer[len] = '\0';
 }
 
 int main(){
@@ -155,7 +178,7 @@ int main(){
                 ssize_t lineSize = getline(&command, &len, stdin);
                 // scanf("%s",command);
                 // printf("got command: %s%ld\n",command,strlen(command));
-                stripInStart(command,strlen(command));
+                stripSpaces(command,strlen(command));
                 if(strlen(command)<2){
                     printf("\n");
                     continue;
@@ -182,7 +205,7 @@ int main(){
                     }
                     pwd[strlen(buffer)] = '\0';
                 }
-                printf("%s\n",buffer);
+                printf("%s\n\n",buffer);
             }
         }
         else{

@@ -1,3 +1,11 @@
+/*
+Name: Prerit Paliwal
+Roll Number: 20CS10046
+Assignment 2
+Question 1
+*/
+
+
 #include <stdio.h>
 #include <sys/socket.h>
 #include <poll.h>
@@ -33,18 +41,19 @@ int main()
     fds[0].events = POLLIN;
 
     int timeout = (3 * 1000);
+    int done = 0;
 
     for (int i = 0; i < 5; i++)
     {
 
-        char *msg = "this is the message\n";
-        printf("sending msg\n");
+        char *msg = "Hi, please send me your date and time\n";
+        // printf("sending msg\n");
         sendto(sockfd, (const char *)msg, strlen(msg), 0, (const struct sockaddr *)&serv_addr, sizeof(serv_addr));
-        printf("msg sent\n");
+        // printf("msg sent\n");
 
-        printf("Waiting on poll()...\n");
+        // printf("Waiting on poll()...\n");
         int rc = poll(fds, nfds, timeout);
-        printf("rc = %d", rc);
+        // printf("rc = %d", rc);
 
         if (rc < 0)
         {
@@ -53,7 +62,7 @@ int main()
         }
         else if (rc == 0)
         {
-            printf("  poll() timed out.  \n");
+            // printf("  poll() timed out.  \n");
             continue;
         }
         else if (fds[0].revents == POLLIN)
@@ -63,14 +72,18 @@ int main()
             {
                 buffer[i] = '\0';
             }
-            printf("waiting to receive ack from server..!!\n");
+            // printf("waiting to receive ack from server..!!\n");
             socklen_t len = sizeof(serv_addr);
             int n = recvfrom(sockfd, (char *)buffer, MAXLEN, 0, (struct sockaddr *)&serv_addr, &len);
             printf("server says: %s", buffer);
+            done = 1;
             break;
         }
     }
 
+    if(!done){
+        printf("Timeout exceeded..!!\n");
+    }
     close(sockfd);
     return 0;
 }

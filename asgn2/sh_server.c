@@ -1,3 +1,11 @@
+/*
+Name: Prerit Paliwal
+Roll Number: 20CS10046
+Assignment 2
+Question 2
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -12,6 +20,7 @@
 #define IO_BUFFER_LEN 5
 #define MAX_USERNAME_LEN 25
 
+// function to authenticate username
 int userExists(char *username){
     FILE *fp = fopen("user.txt","r");
     if(fp==NULL){
@@ -47,6 +56,7 @@ int userExists(char *username){
     }
 }
 
+// function to return command number and corresponding arguments
 int getCommandNo(char *buffer,char *arguments){
     int len = strlen(buffer);
     char *pwd = "pwd";
@@ -58,7 +68,7 @@ int getCommandNo(char *buffer,char *arguments){
         return commandNo;
     }
     for(int i = 0;i<len;i++){
-        if(buffer[0]==pwd[0] && buffer[1]==pwd[1] && buffer[2]==pwd[2]){
+        if(buffer[0]==pwd[0] && buffer[1]==pwd[1] && buffer[2]==pwd[2] && len==3){
             commandNo = 1;
         }
         else if(buffer[0]==dir[0] && buffer[1]==dir[1] && buffer[2]==dir[2]){
@@ -85,12 +95,14 @@ int getCommandNo(char *buffer,char *arguments){
     return commandNo;
 }
 
+// function to clean the buffer
 void cleanBuffer(char *buffer,int len){
     for(int i = 0;i<len;i++){
         buffer[i] = '\0';
     }
 }
 
+// function to send a given msg in chunks
 int sendMsg(int fd,char *msg){
     int len = strlen(msg);
     char buffer[IO_BUFFER_LEN];
@@ -125,6 +137,7 @@ int sendMsg(int fd,char *msg){
     return lenSent+1;
 }
 
+// function to read a msg in chunks
 int readMsg(int fd, char *msg){
     cleanBuffer(msg,MAX_LEN);
     int read = 1;
@@ -152,6 +165,7 @@ int readMsg(int fd, char *msg){
     return lenRead;
 }
 
+// function to execute dir command
 int dir(char *buffer,char *arguments){
     struct dirent *de; 
     DIR *dr = opendir(arguments);
@@ -171,28 +185,7 @@ int dir(char *buffer,char *arguments){
     return 0;
 }
 
-int cd(char *buffer,char *arguments){
-    // char argumentsForCd[MAX_LEN];
-    // cleanBuffer(argumentsForCd,MAX_LEN);
-    // if(arguments[0]!='/'){
-    //     argumentsForCd[0] = '/';
-    //     for(int i = 0;i<strlen(arguments)+1;i++){
-    //         argumentsForCd[i+1] = arguments[i];
-    //     }
-    //     printf("%s\n%s",argumentsForCd,arguments);
-    // }
-    // printf("args: %s\n",arguments);
-    if(chdir(arguments)!=0){
-        perror("chdir() error!!");
-        return 1;
-    }
-    else{
-        // printf("directory changed!!\n");
-        return pwd(buffer);
-        // getCurrentWorkingDirectory(buffer);
-    }
-}
-
+// function to execute pwd command
 int pwd(char *buffer){
     if (getcwd(buffer, MAX_LEN) == NULL)
     {
@@ -206,6 +199,21 @@ int pwd(char *buffer){
     }
 }
 
+// function to execute cd command
+int cd(char *buffer,char *arguments){
+    // printf("args: %s\n",arguments);
+    if(chdir(arguments)!=0){
+        perror("chdir() error!!");
+        return 1;
+    }
+    else{
+        // printf("directory changed!!\n");
+        return pwd(buffer);
+        // getCurrentWorkingDirectory(buffer);
+    }
+}
+
+// function to handle invalid commands
 void invalidCommand(char *buffer){
     for(int i = 0;i<4;i++){
         buffer[i] = '$';
@@ -213,12 +221,14 @@ void invalidCommand(char *buffer){
     buffer[4] = '\0';
 }
 
+// function to handle errors while running commands
 void errorInCommand(char *buffer){
     for(int i = 0;i<4;i++){
         buffer[i] = '#';
     }
     buffer[4] = '\0';
 }
+
 
 int main(){
     int sockfd = socket(AF_INET,SOCK_STREAM,0);
