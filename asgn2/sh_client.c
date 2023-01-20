@@ -15,7 +15,7 @@ Question 2
 
 #define PORT 20000
 #define MAX_LEN 1024
-#define IO_BUFFER_LEN 5
+#define IO_BUFFER_LEN 40
 #define MAX_USERNAME_LEN 25
 
 // function to clean the buffer
@@ -100,13 +100,14 @@ void stripSpaces(char *buffer,int len){
         }
     }
     if(dif>0){
-        for(int i = dif;i<len+1;i++){
+        for(int i = dif;i<len;i++){
             buffer[i-dif] = buffer[i];
         }
+        buffer[len-dif] = '\0';
     }
     len = strlen(buffer);
     dif = 0;
-    for(int i = len-1;i>=0;i--){
+    for(int i = len-2;i>=0;i--){
         if(buffer[i]==' '){
             dif++;
         }
@@ -114,7 +115,9 @@ void stripSpaces(char *buffer,int len){
             break;
         }
     }
+    // printf("dif: %d, len = %d,buf: %s\n",dif,len,buffer);
     len -= dif;
+    buffer[len-1] = '\0';
     buffer[len] = '\0';
 }
 

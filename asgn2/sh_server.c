@@ -17,7 +17,7 @@ Question 2
 
 #define PORT 20000
 #define MAX_LEN 1024
-#define IO_BUFFER_LEN 5
+#define IO_BUFFER_LEN 40
 #define MAX_USERNAME_LEN 25
 
 // function to authenticate username
@@ -64,7 +64,7 @@ int getCommandNo(char *buffer,char *arguments){
     char *cd = "cd";
     int commandNo = 0;
     // printf("len of buffer: %d",len);
-    if(len<3){
+    if(len<2){
         return commandNo;
     }
     for(int i = 0;i<len;i++){
@@ -202,6 +202,9 @@ int pwd(char *buffer){
 // function to execute cd command
 int cd(char *buffer,char *arguments){
     // printf("args: %s\n",arguments);
+    if(strlen(arguments)==0){
+        arguments[0]='/';
+    }
     if(chdir(arguments)!=0){
         perror("chdir() error!!");
         return 1;
@@ -298,6 +301,7 @@ int main(){
                         break;
                     }
                     char arguments[MAX_LEN];
+                    cleanBuffer(arguments,MAX_LEN);
                     // printf("calling getcommand\n");
                     int commandNo = getCommandNo(buffer,arguments);
                     // printf("commandNo: %d",commandNo);
