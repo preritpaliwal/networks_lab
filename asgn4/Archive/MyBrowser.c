@@ -45,9 +45,9 @@ void clear(char *buffer, int size)
 }
 
 // We assume url of the form http://<hostname><path>:<port>
-// This function extracts the host_addr, path and port from the url
-int process_url(char *url, in_addr_t *host_addr, char *path, int *port)
+int process_url(char *url, char *hostname, char *path, int *port)
 {
+
     *port = 80;
 
     // Validate the URL
@@ -58,50 +58,14 @@ int process_url(char *url, in_addr_t *host_addr, char *path, int *port)
     }
 
     // Extract the hostname and path from the URL
+
     int i = 7;
-    char *addr;
-
-    // Case when Hostname is using DNS
-    if ((url[i] >= 'A' && url[i] <= 'Z') || (url[i] >= 'a' && url[i] <= 'z'))
+    while (url[i] != '/' && url[i] != '\0')
     {
-        char hostname[2048];
-        while (url[i] != '/' && url[i] != '\0')
-        {
-            hostname[i - 7] = url[i];
-            i++;
-        }
-        hostname[i - 7] = '\0';
-        printf("hostname : %s\n", hostname);
-
-        // Get the hostent struct (host entry) for the hostname
-        struct hostent *hostent;
-        hostent = gethostbyname(hostname);
-        if (!hostent)
-        {
-            fprintf(stderr, "gethostbyname Failed for hostname : %s\n", hostname);
-            exit(EXIT_FAILURE);
-        }
-        print_hostent(hostent);
-
-        addr = inet_ntoa(*(struct in_addr *)*(hostent->h_addr_list));
-        printf("\n\naddr : %s\n", addr);
+        hostname[i - 7] = url[i];
+        i++;
     }
-    // Case when IP of host is given
-    else
-    {
-        // IPv4 addresses will have 3*4(numbers) + 3(dots) + 1 ('\0')
-        addr = malloc(sizeof(char) * 16);
-        while (url[i] != '/' && url[i] != '\0')
-        {
-            addr[i - 7] = url[i];
-            i++;
-        }
-        addr[i - 1] = '\0';
-        printf("\n\naddr : %s\n", addr);
-    }
-
-    *host_addr = inet_addr(addr);
-    printf("host_addr = %u\n", *host_addr);
+    hostname[i - 7] = '\0';
 
     int j = 0;
     while (url[i] != '\0' && url[i] != ':')
@@ -133,7 +97,7 @@ void process_header(char *header)
     }
 }
 
-int SetupRequest(in_addr_t in_addr)
+int SetupRequest(char *hostname)
 {
     int sockfd;
     // Prepare a HTTP socket
@@ -145,6 +109,7 @@ int SetupRequest(in_addr_t in_addr)
         perror("getprotobyname");
         exit(EXIT_FAILURE);
     }
+
     // print_protoent(protoent);
 
     // Create a socket file descriptor for the HTTP socket
@@ -159,10 +124,26 @@ int SetupRequest(in_addr_t in_addr)
         perror("Socket Creation Failed");
         exit(EXIT_FAILURE);
     }
+
+    // Get the hostent struct (host entry) for the hostname
+    struct hostent *hostent;
+    hostent = gethostbyname(hostname);
+    if (!hostent)
+    {
+        fprintf(stderr, "gethostbyname Failed for hostname : %s\n", hostname);
+        exit(EXIT_FAILURE);
+    }
+    // print_hostent(hostent);
+
+    char *addr = inet_ntoa(*(struct in_addr *)*(hostent->h_addr_list));
+    // printf("\n\naddr : %s\n", addr);
+    in_addr_t in_addr = inet_addr(addr);
+    // printf("in_addr = %u\n", in_addr);
+
     // 255.255.255.255 is a special url that is not sent to the router
     if (in_addr == (in_addr_t)-1)
     {
-        fprintf(stderr, "Internet Address Error:  inet_addr(\"%d\")\n", in_addr);
+        fprintf(stderr, "Internet Address Error:  inet_addr(\"%s\")\n", addr);
         exit(EXIT_FAILURE);
     }
 
@@ -189,9 +170,8 @@ void GET(char *url)
     int port_no;
     char hostname[2048];
     char path[2048];
-    in_addr_t in_addr;
 
-    int ret = process_url(url, &in_addr, path, &port_no);
+    int ret = process_url(url, hostname, path, &port_no);
 
     if (ret < 0)
     {
@@ -199,17 +179,15 @@ void GET(char *url)
         return;
     }
 
-    // printf("\nhostname : %s, path : %s, port_no : %d\n\n", hostname, path, port_no);
+    printf("\nhostname : %s, path : %s, port_no : %d\n\n", hostname, path, port_no);
 
-    int sockfd = SetupRequest(in_addr);
+    int sockfd = SetupRequest(hostname);
 
     // Send the HTTP request
-    char *request_template = "GET %s HTTP/1.1\r\nHost: %d\r\nPort: %d\r\nConnection: close\r\n\r\n";
+    char *request_template = "GET %s HTTP/1.1\r\nHost: %s\r\nPort: %d\r\nConnection: close\r\n\r\n";
     // A lot of browsers (Internet Explorer, Safari, Opera) keep HTTP/HTTPS request length as 2kb or 4kb
     char request[4096];
-    int req_len = snprintf(request, 4096, request_template, path, in_addr, port_no);
-
-    printf("Request : %s\n", request);
+    int req_len = snprintf(request, 4096, request_template, path, hostname, port_no);
 
     char buffer[BUFFER_SIZE];
 
@@ -226,6 +204,7 @@ void GET(char *url)
         }
         nbytes_total += nbytes_last;
     }
+
 
     FILE *fp = fopen("response.html", "wb");
 
@@ -254,32 +233,6 @@ void GET(char *url)
 
 void PUT(char *url, char *file_path)
 {
-    int port_no;
-    char hostname[2048];
-    char path[2048];
-    in_addr_t in_addr;
-
-    int ret = process_url(url, &in_addr, path, &port_no);
-
-    if (ret < 0)
-    {
-        printf("Error in processing URL. Please Try Again.\n");
-        return;
-    }
-
-    // printf("\nhostname : %s, path : %s, port_no : %d\n\n", hostname, path, port_no);
-
-    int sockfd = SetupRequest(in_addr);
-
-    // Send the HTTP request
-    char *request_template = "PUT %s HTTP/1.1\r\nHost: %d\r\nPort: %d\r\nConnection: close\r\n\r\n";
-    // A lot of browsers (Internet Explorer, Safari, Opera) keep HTTP/HTTPS request length as 2kb or 4kb
-    char request[4096];
-    int req_len = snprintf(request, 4096, request_template, path, in_addr, port_no);
-
-    printf("Request : %s\n", request);
-
-    // TODO: Implement File sending for PUT
 }
 
 int main()
@@ -298,14 +251,12 @@ int main()
             break;
         }
 
-        // GET request supporting hostname being either IP address or domain name
         else if (strcmp(request_type, "GET") == 0)
         {
             // As Microsoft Edge and Internet Explored have a maximum URL length of 2048 characters,
             // We feel it is safe to assume that the URL length will not exceed 2048 characters for a simple browser like this
             char url[2048];
             scanf("%s", url); // We assume the URL will be entered without any spaces (spaces replaced by %20)
-
 
             printf("Attempting a GET request for URL : %s\n", url);
 
