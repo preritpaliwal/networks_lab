@@ -3,6 +3,7 @@
         "cstdlib": "c",
         "inet.h": "c",
         "in.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "cstring": "c"
     }
 }

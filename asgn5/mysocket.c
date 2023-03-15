@@ -1,14 +1,17 @@
 #include "mysocket.h"
 #include <pthread.h>
 #include <stdlib.h>
+#include <string.h>
+
+#define WAITTIME 0.1
 
 MyFD *my_socket(int __domain,int __type,int __protocol){
     MyFD *__fd = (MyFD *)malloc(sizeof(struct MyFD));
     __fd->sock_fd = socket(__domain,__type,__protocol);
     __fd->flag = 0;
     // TODO: initqueues
-    __fd->sendTable;
-    __fd->recvTable;
+    queue_init(&(__fd->sendTable),10);
+    queue_init(&(__fd->recvTable),10);
 
     pthread_mutex_init(&(__fd->recvTableLock),NULL);
     pthread_mutex_init(&(__fd->sendTableLock),NULL);
@@ -25,8 +28,7 @@ void *read_loop(void *args){
         if(__fd->flag == 1){
             pthread_exit(0);
         }
-        pthread_mutex_lock(&(__fd->recvTableLock));
-        // if()
+
     }
     return 0;
 }
@@ -62,11 +64,28 @@ int my_accept(MyFD *__fd,struct sockaddr *__addr,socklen_t *__addr_len){
 int my_connect(MyFD *__fd,struct sockaddr * __addr, socklen_t  __addr_len){
     return connect(__fd->sock_fd,__addr,__addr_len);
 }
-ssize_t my_send(MyFD *__fd,const void *__buf, size_t __n, int __flags){
+ssize_t my_send(MyFD *__fd,const char *__buf, size_t __n, int __flags){
     // push in table
+    pthread_mutex_lock(&(__fd->sendTableLock));
+    while(__fd->sendTable.size==__fd->sendTable.capacity){
+        pthread_mutex_unlock(&(__fd->sendTableLock));
+        sleep(WAITTIME);
+        pthread_mutex_lock(&(__fd->sendTableLock));
+    }
+    queue_push(&(__fd->sendTable),__buf);
+    pthread_mutex_unlock(&(__fd->sendTableLock));
+    return __n;
 }
-ssize_t my_recv(MyFD *__fd, void *__buf, size_t __n, int __flags){
+ssize_t my_recv(MyFD *__fd, char *__buf, size_t __n, int __flags){
     // pop from table
+
+    while(__fd->recvTable.size==0){
+        sleep(WAITTIME);
+    }
+    strncpy(__buf,queue_front(&(__fd->recvTable)),__n);
+    queue_pop(&(__fd->recvTable));
+    int ret = strlen(__buf);
+    return ret;
 }
 
 int my_close(MyFD *__fd){

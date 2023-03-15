@@ -14,12 +14,12 @@ typedef struct Q
     int capacity;
 } Q;
 
-void queue_init(Q q, int capacity);
+void queue_init(Q* q, int capacity);
 
-void queue_push(Q q, char *s);
+void queue_push(Q* q, char *s);
 
-void queue_pop(Q q);
+void queue_pop(Q* q);
 
-char* queue_front(Q q);
+char* queue_front(Q* q);
 
-void queue_delete(Q q);
+void queue_delete(Q* q);
