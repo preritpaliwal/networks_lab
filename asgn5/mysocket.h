@@ -2,19 +2,11 @@
 #include <netinet/in.h>
 #include "queue.h"
 
-struct Q{
-    int a;
-};
-
-struct MyFD{
+typedef struct MyFD{
     int sock_fd;
     int flag;
-    struct Q recvTable;
-    struct Q sendTable;
-    pthread_t readThread;
-    pthread_t writeThread;
-    pthread_mutex_t recvTableLock;
-    pthread_mutex_t sendTableLock;
+    Q receiveTable;
+    Q sendTable;
 };
 
 struct MyFD *my_socket(int __domain,int __type,int __protocol);
