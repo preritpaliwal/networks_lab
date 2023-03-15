@@ -2,6 +2,7 @@
     "files.associations": {
         "cstdlib": "c",
         "inet.h": "c",
-        "in.h": "c"
+        "in.h": "c",
+        "string.h": "c"
     }
 }
