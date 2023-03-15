@@ -1,0 +1,8 @@
+To send:
+    take oldest entry in table.
+    Brake it in frames of 999 msg bytes and one EOT
+    append the last frame with an extra EOT
+
+To receive:
+    append to buffer till you are getting data after removing EOT
+    if 2 EOT are encountered copy receive buffer to receive table and clear buffer
