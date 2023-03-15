@@ -3,6 +3,8 @@
 #include <pthread.h>
 #include "queue.h"
 
+// Where to use "SOCK_MyTCP" ?
+
 typedef struct MyFD{
     int sock_fd;
     int flag;
