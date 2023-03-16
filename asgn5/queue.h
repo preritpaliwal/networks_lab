@@ -16,7 +16,7 @@ typedef struct Q
 
 void queue_init(Q* q, int capacity);
 
-void queue_push(Q* q, char *s);
+void queue_push(Q* q, const char *s);
 
 void queue_pop(Q* q);
 

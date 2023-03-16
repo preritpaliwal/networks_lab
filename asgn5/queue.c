@@ -9,7 +9,7 @@ void queue_init(Q* q, int capacity)
     q->tail = NULL;
 }
 
-void queue_push(Q* q, char *s)
+void queue_push(Q* q,const char *s)
 {
     if (q->size == q->capacity)
         return;
