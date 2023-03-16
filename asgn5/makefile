@@ -1,5 +1,5 @@
-library: mysocket.o queue.o
-	ar rcs libmysocket.a mysocket.o queue.o
+library: mysocket.o 
+	ar rcs libmysocket.a mysocket.o 
 
 run: client.c server.c  
 	gcc -L. server.c -lmysocket -o server
