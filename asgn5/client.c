@@ -7,7 +7,7 @@
 
 #include "mysocket.h"
 
-#define MY_PORT 20000
+#define MY_PORT 20001
 #define BUFFER_SIZE 5000
 
 void clear(char* buffer, int size){
@@ -43,8 +43,33 @@ int main()
     my_recv(sockfd, buffer, BUFFER_SIZE, 0);
     printf("Message from Server: %s\n", buffer);
 
-    strcpy(buffer,"This is a test string being sent from the client.");
+    my_recv(sockfd, buffer, BUFFER_SIZE, 0);
+    printf("Message from Server: %s\n", buffer);
+
+    my_recv(sockfd, buffer, BUFFER_SIZE, 0);
+    printf("Message from Server: %s\n", buffer);
+
+    my_recv(sockfd, buffer, BUFFER_SIZE, 0);
+    printf("Message from Server: %s\n", buffer);
+
+    my_recv(sockfd, buffer, BUFFER_SIZE, 0);
+    printf("Message from Server: %s\n", buffer);
+
+    strcpy(buffer,"This is a test string being sent from the client. MSG 1");
     my_send(sockfd, buffer, strlen(buffer)+1, 0);
+    sleep(2);
+    strcpy(buffer,"This is a test string being sent from the client. MSG 2");
+    my_send(sockfd, buffer, strlen(buffer)+1, 0);
+    sleep(2);
+    strcpy(buffer,"This is a test string being sent from the client. MSG 3");
+    my_send(sockfd, buffer, strlen(buffer)+1, 0);
+    sleep(2);
+    strcpy(buffer,"This is a test string being sent from the client. MSG 4");
+    my_send(sockfd, buffer, strlen(buffer)+1, 0);
+    sleep(2);
+    strcpy(buffer,"This is a test string being sent from the client. MSG 5");
+    my_send(sockfd, buffer, strlen(buffer)+1, 0);
+    sleep(2);
 
     // sleep(2);
 

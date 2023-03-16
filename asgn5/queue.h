@@ -22,4 +22,4 @@ void queue_pop(Q* q);
 
 char* queue_front(Q* q);
 
-void queue_delete(Q* q);
+void queue_print(Q* q);
