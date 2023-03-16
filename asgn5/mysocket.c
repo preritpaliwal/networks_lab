@@ -51,19 +51,18 @@ void *read_loop(void *args)
             sleep(WAITTIME);
             pthread_mutex_lock(&(__fd->recvTableLock));
         }
+        pthread_mutex_unlock(&(__fd->recvTableLock));
         char *chunk = (char *)malloc(sizeof(char) * FRAME_SIZE);
         clear_buffer(chunk,FRAME_SIZE);
-        int loop = 1;
         int recBits = 0;
-        while(loop>0){
+        while(1){
             recBits = recv(__fd->sock_fd,chunk,FRAME_SIZE,0);
             if(recBits>0){
-                loop = 0;
+                break;
             }
         }
-        loop = 1;
         int recved = 0;
-        while(loop){
+        while(1){
             int i;
             for(i = 0;;i++){
                 s[i+recved] = chunk[i];
@@ -72,13 +71,20 @@ void *read_loop(void *args)
                 }
             }
             recved += i;
+            if(i+1<FRAME_SIZE){
+                if(chunk[i+1]=='\0'){
+                    break;
+                }
+            }
             clear_buffer(chunk,FRAME_SIZE);
             recBits = recv(__fd->sock_fd, chunk, FRAME_SIZE, 0);
             if(recBits == 0){
                 break;
             }
-            
         }
+        pthread_mutex_lock(&(__fd->recvTableLock));
+        queue_push(&(__fd->recvTable),s);
+        pthread_mutex_unlock(&(__fd->recvTableLock));
     }
     return 0;
 }
