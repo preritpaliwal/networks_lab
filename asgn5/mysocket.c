@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define WAITTIME 0.1
 #define FRAME_SIZE 1000
@@ -39,12 +40,11 @@ void clear_buffer(char buf[],int n){
 void *read_loop(void *args)
 {
     MyFD *__fd = (MyFD *)args;
-    char *s = (char *)malloc(sizeof(char) * MSG_SIZE);
+    char s[MSG_SIZE];
     while (1)
     {
         if (__fd->flag == 1)
         {
-            free(s);
             pthread_exit(0);
         }
         clear_buffer(s,MSG_SIZE);
@@ -56,7 +56,7 @@ void *read_loop(void *args)
             pthread_mutex_lock(&(__fd->recvTableLock));
         }
         pthread_mutex_unlock(&(__fd->recvTableLock));
-        char *chunk = (char *)malloc(sizeof(char) * FRAME_SIZE);
+        char chunk[FRAME_SIZE];
         clear_buffer(chunk,FRAME_SIZE);
         int recBits = 0;
         while(1){
@@ -96,12 +96,11 @@ void *read_loop(void *args)
 void *write_loop(void *args)
 {
     MyFD *__fd = (MyFD *)args;
-    char *s = (char *)malloc(sizeof(char) * MSG_SIZE);
+    char s[MSG_SIZE];
     while (1)
     {
         if (__fd->flag == 1)
         {
-            free(s);
             pthread_exit(0);
         }
         clear_buffer(s,MSG_SIZE);
@@ -118,18 +117,19 @@ void *write_loop(void *args)
         int sent = 0;
         while (sent < len)
         {
-            char *chunk = (char *)malloc(sizeof(char) * FRAME_SIZE);
+            char chunk[FRAME_SIZE];
             clear_buffer(chunk,FRAME_SIZE);
-            strnpcy(chunk, s+sent, FRAME_SIZE - 1);
-            // chunk[FRAME_SIZE-1] = '\x03';
-            chunk[FRAME_SIZE-1] = '\0';
+            int i;
+            for(i=0;i<FRAME_SIZE-1 && s[sent + i] != '\0';i++){
+                chunk[i] = s[sent+i];
+            }
+
+            chunk[i] = '\0';
             int chunk_len = strlen(chunk);
-            // Handle case when remaining less than FRAME_SIZE. 
-            // Handled I guess?
             sent += send(__fd->sock_fd, chunk, chunk_len, 0);
         }
         pthread_mutex_lock(&(__fd->sendTableLock));
-        queue_pop(&(__fd->sendTableLock));
+        queue_pop(&(__fd->sendTable));
         pthread_mutex_unlock(&(__fd->sendTableLock));
     }
     return 0;
@@ -157,7 +157,7 @@ MyFD* my_accept(MyFD *__fd, struct sockaddr *__addr, socklen_t *__addr_len)
         perror("Error creating writeThread thread!");
         exit(EXIT_FAILURE);
     }
-    
+
     return initMyFD(accept(__fd->sock_fd, __addr, __addr_len));
 }
 
@@ -192,7 +192,14 @@ ssize_t my_recv(MyFD *__fd, char *__buf, size_t __n, int __flags)
         sleep(WAITTIME);
         pthread_mutex_lock(&(__fd->recvTableLock));
     }
-    strncpy(__buf, queue_front(&(__fd->recvTable)), __n);
+
+    int i;
+    char* src = queue_front(&(__fd->recvTable));
+    for(i=0;i<__n-1 && src[i] != '\0';i++){
+        __buf[i] = src[i];
+    }
+    __buf[i] = '\0';
+
     queue_pop(&(__fd->recvTable));
     pthread_mutex_unlock(&(__fd->recvTableLock));
     int ret = strlen(__buf);
@@ -201,7 +208,9 @@ ssize_t my_recv(MyFD *__fd, char *__buf, size_t __n, int __flags)
 
 int my_close(MyFD *__fd)
 {
+    sleep(5);
     __fd->flag = 1;
-    // sleep(5);
-    return close(__fd->sock_fd);
+    int ret = close(__fd->sock_fd);
+    free(__fd);
+    return ret;
 }

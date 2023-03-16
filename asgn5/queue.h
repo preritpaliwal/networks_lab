@@ -3,7 +3,7 @@
 typedef struct LL
 {
     char *data;
-    LL *next;
+    struct LL *next;
 } LL;
 
 typedef struct Q

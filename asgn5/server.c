@@ -60,6 +60,7 @@ int main()
 
         my_recv(newsockfd, buffer, BUFFER_SIZE, 0);
         printf("Message from Client: %s\n", buffer);
+        // sleep(2);
 
         my_close(newsockfd);
     }

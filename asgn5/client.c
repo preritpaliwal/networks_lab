@@ -46,6 +46,8 @@ int main()
     strcpy(buffer,"This is a test string being sent from the client.");
     my_send(sockfd, buffer, strlen(buffer)+1, 0);
 
+    // sleep(2);
+
     my_close(sockfd);
     return 0;
 

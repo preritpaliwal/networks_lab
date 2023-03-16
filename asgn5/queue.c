@@ -53,12 +53,6 @@ char *queue_front(Q* q)
     if(q->head == NULL)
         return NULL;
 
-    // int len = strlen(q->head->data);
-    // char* s = (char*) malloc(sizeof(char) * (len + 1));
-    // strcpy(s,q->head->data);
-    // s[len] = '\0';
-    // return s;
-
     return (q->head->data);
 }
 
