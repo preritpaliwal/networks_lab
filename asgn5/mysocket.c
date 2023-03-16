@@ -30,7 +30,7 @@ MyFD* initMyFD(int fd){
 MyFD *my_socket(int __domain, int __type, int __protocol)
 {   
     if(__type!=SOCK_MyTCP){
-        return -1;
+        return initMyFD(-1);
     }
     return initMyFD(socket(__domain, SOCK_STREAM, __protocol));
 }
@@ -53,6 +53,7 @@ void *read_loop(void *args)
         }
         clear_buffer(s,MSG_SIZE);
         pthread_mutex_lock(&(__fd->recvTableLock));
+        printf("recvtable len = %d",__fd->recvTable.size);
         while (__fd->recvTable.size == __fd->recvTable.capacity)
         {
             pthread_mutex_unlock(&(__fd->recvTableLock));
@@ -109,6 +110,7 @@ void *write_loop(void *args)
         }
         clear_buffer(s,MSG_SIZE);
         pthread_mutex_lock(&(__fd->sendTableLock));
+        printf("sendtable len = %d",__fd->sendTable.size);
         while(__fd->sendTable.size == 0)
         {
             pthread_mutex_unlock(&(__fd->sendTableLock));
