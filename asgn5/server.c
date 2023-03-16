@@ -6,7 +6,7 @@
 
 #include "mysocket.h"
 
-#define MY_PORT 20001   
+#define MY_PORT 20001
 #define BUFFER_SIZE 5000
 
 void clear(char* buffer, int size)
