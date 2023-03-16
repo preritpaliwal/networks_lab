@@ -1,8 +1,54 @@
-To send:
-    take oldest entry in table.
-    Brake it in frames of 999 msg bytes and one EOT
-    append the last frame with an extra EOT
+mysocket.h mysocket.c :
+    => The socket has been implemented as a structure consisting of
+        - sock_fd : socket file descriptor
+        - flag : a boolean flag to indicate if the socket is about to be closed and threads can be deleted
+        - recvTable, sendTable : a queue of strings (maximum 10) to store messages to be sent and received (supports push, pop and front operations)
+        - readThread, writeThread : Threads (R and S) to perform the receiving and sendin operations
+        - recvTableLock, sendTableLock : Mutex Locks to avoid race conditions
 
-To receive:
-    append to buffer till you are getting data after removing EOT
-    if 2 EOT are encountered copy receive buffer to receive table and clear buffer
+    =>  my_socket()
+        - a function to create a my_TCP socket, a wrapper around socket() function
+    
+    => my_bind()
+        - bind a socket to a port, a wrapper around bind() function
+
+    => my_listen()
+        - listen for incoming connections, a wrapper around listen() function
+
+    => my_accept()
+        - accept an incoming connection, a wrapper around accept() function
+        - creates new threads (R and S) for the new connection
+        - returns a MyFD structure for newsockfd
+
+    => my_connect()
+        - make a connection to a server, a wrapper around connect() function
+        - creates new threads (R and S) for the new connection
+
+    => my_send()
+        - If the sendTable queue is not full, append a new message to it
+        - If the sentTable queue is full, wait for 0.1 seconds and try again
+        - This serves as the interface to the user to send messages at TCP sockets
+        - Within the library, the sendTable queue is accessed by the S thread in the write_loop function
+        - The S thread pops the oldest message from the queue 
+        - The message is then broken into frames of maximum 1000 characters, 999 arbitary characters and one guaranteed NULL
+        - The end of each frame is marked using a NULL character and 2 or more consecutive NULL characters are sent to indicate the end of the message
+        - The frames are then sent to the server using the send() function
+        - Mutex locks are used in the my_send function as well as the write_loop when updating the sendTable queue to avoid race conditions.
+
+    => my_recv()
+        - If the recieveTable queue is not full, wait for 0.1 seconds and try again.
+        - If the recieveTable queue is full, return the message at the front of the queue and pop it
+        - This serves as the interface to the user to receive messages at TCP sockets
+        - Within the library, the recieveTable queue is accessed by the R thread in the read_loop function
+        - In the read_loop function, the message is recieved in frames of maximum 1000 characters, 999 arbitary characters and one guaranteed NULL
+        - These frames, received using the recv() function, are joined to form the complete message
+        - The end of each frame is marked using a NULL character and 2 or more consecutive NULL characters are interpreted as the end of the message
+        - The R thread appends the received message to the queue
+        - Mutex locks are used in the my_recv function as well as the read_loop when updating the RecvTable queue to avoid race conditions.
+
+    => my_close()
+        - close a socket, a wrapper around close() function
+        - sets the flag to true to indicate that the threads can be deleted
+        - First, a 4 second delay is given to the threads to finish their operations
+        - Then, a 1 second delay is given for the threads to check the flag and terminate
+        - Frees up the memory allocated for the socket structure
