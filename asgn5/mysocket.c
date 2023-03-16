@@ -6,20 +6,17 @@
 #include <unistd.h>
 
 #define WAITTIME 0.1
-#define FRAME_SIZE 10
+#define FRAME_SIZE 1000
 #define MSG_SIZE 5001
 
 MyFD* initMyFD(int fd){
     MyFD *__fd = (MyFD *)malloc(sizeof(MyFD));
     __fd->sock_fd = fd;
     __fd->flag = 0;
-    // TODO: initqueues
     queue_init(&(__fd->sendTable), 10);
     queue_init(&(__fd->recvTable), 10);
-
     pthread_mutex_init(&(__fd->recvTableLock), NULL);
     pthread_mutex_init(&(__fd->sendTableLock), NULL);
-
     if (__fd->sock_fd < 0)
     {
         __fd->flag = 1;
@@ -43,45 +40,37 @@ void clear_buffer(char buf[],int n){
 
 void *read_loop(void *args)
 {
-    // printf("starting read loopppp\n");
     MyFD *__fd = (MyFD *)args;
     char s[MSG_SIZE];
     while (1)
     {
-        // printf("[read loop] here\n");
         if (__fd->flag == 1)
         {
             pthread_exit(0);
         }
         clear_buffer(s,MSG_SIZE);
         pthread_mutex_lock(&(__fd->recvTableLock));
-        // printf("[read loop] above recvtable len = %d\n",__fd->recvTable.size);
         while (__fd->recvTable.size == __fd->recvTable.capacity)
         {
             pthread_mutex_unlock(&(__fd->recvTableLock));
             sleep(WAITTIME);
             pthread_mutex_lock(&(__fd->recvTableLock));
         }
-        // printf("[read loop]below recvtable len = %d\n",__fd->recvTable.size);
         pthread_mutex_unlock(&(__fd->recvTableLock));
         char chunk[FRAME_SIZE];
         clear_buffer(chunk,FRAME_SIZE);
         int recBits = 0;
         while(1){
             recBits = recv(__fd->sock_fd,chunk,FRAME_SIZE,0);
-            // printf("Received %d bytes.\n",recBits);
             if(recBits>0){
                 break;
             }
         }
         int recved = 0;
         while(1){
-            // printf("Received this chunk : %s[%ld]\n", chunk,strlen(chunk));
             int i;
             for(i=0;;i++){
                 s[i+recved] = chunk[i];
-                // printf("Pehla loop\n");
-                // printf("%c %d\n",chunk[i], chunk[i]);
                 if(chunk[i]=='\0'){
                     break;
                 }
@@ -89,14 +78,12 @@ void *read_loop(void *args)
             recved += i;
             if(i+1<FRAME_SIZE){
                 if(chunk[i+1]=='\0'){
-                    // printf("Dusra\n");
                     break;
                 }
             }
 
             clear_buffer(chunk,FRAME_SIZE);
             recBits = recv(__fd->sock_fd, chunk, FRAME_SIZE, 0);
-            // printf("Received %d bytes.\n",recBits);
             if(recBits == 0){
                 break;
             }
@@ -110,31 +97,25 @@ void *read_loop(void *args)
 
 void *write_loop(void *args)
 {
-    // printf("starting write loopppp\n");
     MyFD *__fd = (MyFD *)args;
     char s[MSG_SIZE];
     while (1)
     {
-        // printf("[write loop] here\n");
         if (__fd->flag == 1)
         {
             pthread_exit(0);
         }
         clear_buffer(s,MSG_SIZE);
         pthread_mutex_lock(&(__fd->sendTableLock));
-        // printf("%d[write loop] above sendtable len = %d\n",__fd->sock_fd,__fd->sendTable.size);
         while(__fd->sendTable.size == 0)
         {
             pthread_mutex_unlock(&(__fd->sendTableLock));
             sleep(WAITTIME);
             pthread_mutex_lock(&(__fd->sendTableLock));
         }
-        // printf("%d[write loop] below sendtable len = %d\n",__fd->sock_fd,__fd->sendTable.size);
         const char *src = queue_front(&(__fd->sendTable));
-        // printf("src: %s\n",src);
         strcpy(s, src);
         pthread_mutex_unlock(&(__fd->sendTableLock));
-        // printf("string to be sent: %s\n",s);
         int len = strlen(s);
         int sent = 0;
         while (sent < len)
@@ -149,7 +130,6 @@ void *write_loop(void *args)
             chunk[i] = '\0';
             
             int chunk_len = strlen(chunk);
-            // printf("Sending this chunk: %s[%ld]\n",chunk, strlen(chunk));
             int ret = send(__fd->sock_fd, chunk, chunk_len+1, 0);
             if(ret < 0){
                 continue;
@@ -157,9 +137,7 @@ void *write_loop(void *args)
             sent += (ret-1);
         }
         pthread_mutex_lock(&(__fd->sendTableLock));
-        // printf("not crashed\n");
         queue_pop(&(__fd->sendTable));
-        // printf("crashed\n");
         pthread_mutex_unlock(&(__fd->sendTableLock));
     }
     return 0;
@@ -212,9 +190,7 @@ int my_connect(MyFD *__fd, struct sockaddr *__addr, socklen_t __addr_len)
 
 ssize_t my_send(MyFD *__fd, const char *__buf, size_t __n, int __flags)
 {
-    // push in table
     pthread_mutex_lock(&(__fd->sendTableLock));
-    // printf("[my send1]sendtable len = %d\n",__fd->sendTable.size);
     while (__fd->sendTable.size == __fd->sendTable.capacity)
     {
         pthread_mutex_unlock(&(__fd->sendTableLock));
@@ -230,7 +206,6 @@ ssize_t my_send(MyFD *__fd, const char *__buf, size_t __n, int __flags)
     }
     buffer[i] = '\0';
     queue_push(&(__fd->sendTable), buffer);
-    // printf("%d[my send2]sendtable len = %d\n",__fd->sock_fd,__fd->sendTable.size);
     pthread_mutex_unlock(&(__fd->sendTableLock));
     return __n;
 }
@@ -240,7 +215,6 @@ ssize_t my_recv(MyFD *__fd, char *__buf, size_t __n, int __flags)
     // pop from table
     clear_buffer(__buf,__n);
     pthread_mutex_lock(&(__fd->recvTableLock));
-    // printf("[my recv]recvtable len = %d\n",__fd->recvTable.size);
     while (__fd->recvTable.size == 0)
     {
         pthread_mutex_unlock(&(__fd->recvTableLock));
@@ -263,8 +237,9 @@ ssize_t my_recv(MyFD *__fd, char *__buf, size_t __n, int __flags)
 
 int my_close(MyFD *__fd)
 {
-    sleep(5);
+    sleep(4);
     __fd->flag = 1;
+    sleep(1);
     int ret = close(__fd->sock_fd);
     free(__fd);
     return ret;
