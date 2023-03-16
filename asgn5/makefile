@@ -1,17 +1,15 @@
+library: mysocket.o queue.o
+	ar rcs libmysocket.a mysocket.o queue.o
 
-
-run: client.c server.c mysocket.o queue.o
-	gcc client.c mysocket.o queue.o -o client
-	gcc server.c mysocket.o queue.o -o server
-
-library: mysocket.o
-	ar rcs libmsocket.a mysocket.o queue.o
+run: client.c server.c  
+	gcc -L. server.c -lmysocket -o server
+	gcc -L. client.c -lmysocket -o client
 
 mysocket.o: mysocket.h mysocket.c queue.o
-	gcc mysocket.c queue.o -c mysocket.o
+	gcc -c mysocket.c queue.o -o mysocket.o
 
 queue.o: queue.h queue.c
-	gcc queue.c -c queue.o
+	gcc -c queue.c -o queue.o
 
 clean:
 	rm *.o client server
