@@ -145,20 +145,24 @@ int my_listen(MyFD *__fd, int __n)
     return listen(__fd->sock_fd, __n);
 }
 
-MyFD* my_accept(MyFD *__fd, struct sockaddr *__addr, socklen_t *__addr_len)
+MyFD* my_accept(MyFD *__fd, struct sockaddr *__restrict__ __addr, socklen_t *__restrict__ __addr_len)
 {
-    if (pthread_create(&(__fd->readThread), NULL, read_loop, __fd) != 0)
+    printf("near init\n");
+    MyFD * fd = initMyFD(accept(__fd->sock_fd, __addr, __addr_len));
+    printf("starting\n");
+    if (pthread_create(&(fd->readThread), NULL, read_loop, __fd) != 0)
     { // create the read thread
         perror("Error creating readThread thread!");
         exit(EXIT_FAILURE);
     }
-    if (pthread_create(&(__fd->writeThread), NULL, write_loop, __fd) != 0)
+    printf("mid\n");
+    if (pthread_create(&(fd->writeThread), NULL, write_loop, __fd) != 0)
     { // create the write thread
         perror("Error creating writeThread thread!");
         exit(EXIT_FAILURE);
     }
-
-    return initMyFD(accept(__fd->sock_fd, __addr, __addr_len));
+    printf("done\n");
+    return fd;
 }
 
 int my_connect(MyFD *__fd, struct sockaddr *__addr, socklen_t __addr_len)
