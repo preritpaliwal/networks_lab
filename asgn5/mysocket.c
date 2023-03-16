@@ -7,10 +7,9 @@
 #define FRAME_SIZE 1000
 #define MSG_SIZE 5001
 
-MyFD *my_socket(int __domain, int __type, int __protocol)
-{
+MyFD* initMyFD(int fd){
     MyFD *__fd = (MyFD *)malloc(sizeof(struct MyFD));
-    __fd->sock_fd = socket(__domain, __type, __protocol);
+    __fd->sock_fd = fd;
     __fd->flag = 0;
     // TODO: initqueues
     queue_init(&(__fd->sendTable), 10);
@@ -24,6 +23,11 @@ MyFD *my_socket(int __domain, int __type, int __protocol)
         __fd->flag = 1;
     }
     return __fd;
+}
+
+MyFD *my_socket(int __domain, int __type, int __protocol)
+{
+    return initMyFD(socket(__domain, __type, __protocol));
 }
 
 void clear_buffer(char buf[],int n){
@@ -141,7 +145,7 @@ int my_listen(MyFD *__fd, int __n)
     return listen(__fd->sock_fd, __n);
 }
 
-int my_accept(MyFD *__fd, struct sockaddr *__addr, socklen_t *__addr_len)
+MyFD* my_accept(MyFD *__fd, struct sockaddr *__addr, socklen_t *__addr_len)
 {
     if (pthread_create(&(__fd->readThread), NULL, read_loop, __fd) != 0)
     { // create the read thread
@@ -153,7 +157,8 @@ int my_accept(MyFD *__fd, struct sockaddr *__addr, socklen_t *__addr_len)
         perror("Error creating writeThread thread!");
         exit(EXIT_FAILURE);
     }
-    return accept(__fd->sock_fd, __addr, __addr_len);
+    
+    return initMyFD(accept(__fd->sock_fd, __addr, __addr_len));
 }
 
 int my_connect(MyFD *__fd, struct sockaddr *__addr, socklen_t __addr_len)

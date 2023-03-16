@@ -8,6 +8,13 @@
 #include "mysocket.h"
 
 #define MY_PORT 20000
+#define BUFFER_SIZE 5000
+
+void clear(char* buffer, int size)
+{
+    for(int i=0;i<size;i++)
+        buffer[i] = '\0';
+}
 
 int main()
 {
@@ -35,15 +42,24 @@ int main()
 
     while(1){
 
-        MyFD* newsockfd;
         socklen_t clilen;
+        MyFD* newsockfd = my_accept(newsockfd, (struct sockaddr *) &cli_addr, &clilen);
         // Change my_accept to be of MyFD* type.
-        int temp = my_accept(newsockfd, (struct sockaddr *) &cli_addr, &clilen);
 
-        if(temp < 0){
+        if(newsockfd->sock_fd < 0){
            perror("Accept error.");
            exit(0); 
         }
+
+        char buffer[BUFFER_SIZE];
+        clear(buffer, BUFFER_SIZE);
+
+        strcpy(buffer,"This is a test string being sent from the server.");
+
+        my_send(newsockfd, buffer, strlen(buffer)+1, 0);
+
+        my_recv(newsockfd, buffer, BUFFER_SIZE, 0);
+        printf("Message from Client: %s\n", buffer);
 
         my_close(newsockfd);
     }

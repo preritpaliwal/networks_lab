@@ -8,6 +8,12 @@
 #include "mysocket.h"
 
 #define MY_PORT 20000
+#define BUFFER_SIZE 5000
+
+void clear(char* buffer, int size){
+    for(int i=0;i<size;i++)
+        buffer[i] = '\0';
+}
 
 int main()
 {
@@ -31,6 +37,14 @@ int main()
         exit(0);
     }
 
+    char buffer[BUFFER_SIZE];
+    clear(buffer, BUFFER_SIZE);
+
+    my_recv(sockfd, buffer, BUFFER_SIZE, 0);
+    printf("Message from Server: %s\n", buffer);
+
+    strcpy(buffer,"This is a test string being sent from the client.");
+    my_send(sockfd, buffer, strlen(buffer)+1, 0);
 
     my_close(sockfd);
     return 0;
