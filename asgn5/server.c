@@ -38,15 +38,11 @@ int main()
     my_listen(sockfd, 5);
 
 
-    // while(1){
+    while(1){
 
         socklen_t clilen;
 
-
         MyFD* newsockfd = my_accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-        // printf("SOCKFD : %d\n", sockfd->sock_fd);
-        // printf("NEWSOCKFD: %d\n", newsockfd->sock_fd);
-        // Change my_accept to be of MyFD* type.
 
         if(newsockfd->sock_fd < 0){
            perror("Accept error.");
@@ -56,47 +52,19 @@ int main()
         char buffer[BUFFER_SIZE];
         clear(buffer, BUFFER_SIZE);
 
-        strcpy(buffer,"This is a test string being sent from the server. MSG 1");
-        my_send(newsockfd, buffer, strlen(buffer)+1, 0);
-        sleep(2);
-        
-        strcpy(buffer,"This is a test string being sent from the server. MSG 2");
-        my_send(newsockfd, buffer, strlen(buffer)+1, 0);
-        sleep(2);
-        
-        strcpy(buffer,"This is a test string being sent from the server. MSG 3");
-        my_send(newsockfd, buffer, strlen(buffer)+1, 0);
-        sleep(2);
-        
-        strcpy(buffer,"This is a test string being sent from the server. MSG 4");
-        my_send(newsockfd, buffer, strlen(buffer)+1, 0);
-        sleep(2);
-        
-        strcpy(buffer,"This is a test string being sent from the server. MSG 5");
-        my_send(newsockfd, buffer, strlen(buffer)+1, 0);
-        sleep(2);
-        
+        while(1){
+            my_recv(newsockfd, buffer, BUFFER_SIZE, 0);
+            printf("Received from Client : %s\n",buffer);
 
-        my_recv(newsockfd, buffer, BUFFER_SIZE, 0);
-        printf("Message from Client: %s\n", buffer);
+            if(!strcmp(buffer,"exit"))
+                break;
 
-
-        my_recv(newsockfd, buffer, BUFFER_SIZE, 0);
-        printf("Message from Client: %s\n", buffer);
-
-        my_recv(newsockfd, buffer, BUFFER_SIZE, 0);
-        printf("Message from Client: %s\n", buffer);
-
-        my_recv(newsockfd, buffer, BUFFER_SIZE, 0);
-        printf("Message from Client: %s\n", buffer);
-
-        my_recv(newsockfd, buffer, BUFFER_SIZE, 0);
-        printf("Message from Client: %s\n", buffer);
-        // sleep(2);
+            my_send(newsockfd, buffer, strlen(buffer)+1, 0);
+        }
 
         my_close(newsockfd);
         
-    // }
+    }
 
     my_close(sockfd);
 

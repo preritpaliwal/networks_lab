@@ -15,6 +15,30 @@ void clear(char* buffer, int size){
         buffer[i] = '\0';
 }
 
+int StrLen;
+void readinput(char *input)
+{
+    printf("Enter String: ");
+    clear(input, BUFFER_SIZE);
+    
+    StrLen = 0;
+
+    int in_chunk = 200;
+    // char *input = NULL;
+    char tempbuf[in_chunk];
+    size_t templen = 0;
+
+    do
+    {
+        fgets(tempbuf, in_chunk, stdin);
+        templen = strlen(tempbuf);
+        strcpy(input + StrLen, tempbuf);
+        StrLen += templen;
+    } while (templen == in_chunk - 1 && tempbuf[in_chunk - 2] != '\n');
+
+    input[--StrLen] = '\0';
+}
+
 int main()
 {
 
@@ -38,40 +62,23 @@ int main()
     }
 
     char buffer[BUFFER_SIZE];
-    clear(buffer, BUFFER_SIZE);
 
-    my_recv(sockfd, buffer, BUFFER_SIZE, 0);
-    printf("Message from Server: %s\n", buffer);
+    while(1){
+    
+        clear(buffer, BUFFER_SIZE);
+        readinput(buffer);
 
-    my_recv(sockfd, buffer, BUFFER_SIZE, 0);
-    printf("Message from Server: %s\n", buffer);
+        my_send(sockfd, buffer, strlen(buffer)+1, 0);
 
-    my_recv(sockfd, buffer, BUFFER_SIZE, 0);
-    printf("Message from Server: %s\n", buffer);
+        if(strcmp(buffer,"exit") == 0)
+            break;
 
-    my_recv(sockfd, buffer, BUFFER_SIZE, 0);
-    printf("Message from Server: %s\n", buffer);
+        my_recv(sockfd, buffer, BUFFER_SIZE, 0);
 
-    my_recv(sockfd, buffer, BUFFER_SIZE, 0);
-    printf("Message from Server: %s\n", buffer);
+        printf("Message from Server: %s\n",buffer);
+    }   
 
-    strcpy(buffer,"This is a test string being sent from the client. MSG 1");
-    my_send(sockfd, buffer, strlen(buffer)+1, 0);
-    sleep(2);
-    strcpy(buffer,"This is a test string being sent from the client. MSG 2");
-    my_send(sockfd, buffer, strlen(buffer)+1, 0);
-    sleep(2);
-    strcpy(buffer,"This is a test string being sent from the client. MSG 3");
-    my_send(sockfd, buffer, strlen(buffer)+1, 0);
-    sleep(2);
-    strcpy(buffer,"This is a test string being sent from the client. MSG 4");
-    my_send(sockfd, buffer, strlen(buffer)+1, 0);
-    sleep(2);
-    strcpy(buffer,"This is a test string being sent from the client. MSG 5");
-    my_send(sockfd, buffer, strlen(buffer)+1, 0);
-    sleep(2);
-
-    // sleep(2);
+    printf("Exiting....\n");
 
     my_close(sockfd);
     return 0;

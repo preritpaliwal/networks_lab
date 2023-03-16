@@ -47,7 +47,7 @@ void queue_pop(Q* q)
         q->tail = NULL;
     }
     free(temp->data);
-    free(temp->next);
+    free(temp);
     // queue_print(q);
 }
 
