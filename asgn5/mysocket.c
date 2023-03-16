@@ -4,7 +4,7 @@
 #include <string.h>
 
 #define WAITTIME 0.1
-#define CHUNK_SIZE 1000
+#define FRAME_SIZE 1000
 #define MSG_SIZE 5001
 
 MyFD *my_socket(int __domain, int __type, int __protocol)
@@ -26,20 +26,58 @@ MyFD *my_socket(int __domain, int __type, int __protocol)
     return __fd;
 }
 
+void clear_buffer(char buf[],int n){
+    for(int i = 0;i<n;i++){
+        buf[i] = '\0';
+    }
+}
+
 void *read_loop(void *args)
 {
     MyFD *__fd = (MyFD *)args;
+    char *s = (char *)malloc(sizeof(char) * MSG_SIZE);
     while (1)
     {
         if (__fd->flag == 1)
         {
+            free(s);
             pthread_exit(0);
         }
-        if (__fd->recvTable.size < __fd->recvTable.capacity)
+        clear_buffer(s,MSG_SIZE);
+        pthread_mutex_lock(&(__fd->recvTableLock));
+        while (__fd->recvTable.size == __fd->recvTable.capacity)
         {
-            char *s = (char *)malloc(sizeof(char) * MSG_SIZE);
-
-            free(s);
+            pthread_mutex_unlock(&(__fd->recvTableLock));
+            sleep(WAITTIME);
+            pthread_mutex_lock(&(__fd->recvTableLock));
+        }
+        char *chunk = (char *)malloc(sizeof(char) * FRAME_SIZE);
+        clear_buffer(chunk,FRAME_SIZE);
+        int loop = 1;
+        int recBits = 0;
+        while(loop>0){
+            recBits = recv(__fd->sock_fd,chunk,FRAME_SIZE,0);
+            if(recBits>0){
+                loop = 0;
+            }
+        }
+        loop = 1;
+        int recved = 0;
+        while(loop){
+            int i;
+            for(i = 0;;i++){
+                s[i+recved] = chunk[i];
+                if(chunk[i]=='\0'){
+                    break;
+                }
+            }
+            recved += i;
+            clear_buffer(chunk,FRAME_SIZE);
+            recBits = recv(__fd->sock_fd, chunk, FRAME_SIZE, 0);
+            if(recBits == 0){
+                break;
+            }
+            
         }
     }
     return 0;
@@ -48,37 +86,41 @@ void *read_loop(void *args)
 void *write_loop(void *args)
 {
     MyFD *__fd = (MyFD *)args;
+    char *s = (char *)malloc(sizeof(char) * MSG_SIZE);
     while (1)
     {
         if (__fd->flag == 1)
         {
+            free(s);
             pthread_exit(0);
         }
-        sleep(WAITTIME);
-        if (__fd->sendTable.size > 0)
+        clear_buffer(s,MSG_SIZE);
+        pthread_mutex_lock(&(__fd->sendTableLock));
+        while(__fd->sendTable.size == 0)
         {
-            char *s = (char *)malloc(sizeof(char) * MSG_SIZE);
-            strcpy(s, queue_front(&(__fd->sendTable)));
-            int len = strlen(s);
-            int sent = 0;
-
-            while (sent < len)
-            {
-
-                char *chunk = (char *)malloc(sizeof(char) * CHUNK_SIZE);
-                strnpcy(chunk, s+sent, CHUNK_SIZE - 1);
-                // chunk[CHUNK_SIZE-1] = '\x03';
-                chunk[CHUNK_SIZE-1] = '\0';
-                int chunk_len = strlen(chunk);
-
-                // Handle case when remaining less than CHUNK_SIZE.
-
-                int n = send(__fd->sock_fd, chunk, chunk_len, 0);
-                sent += n;
-            }
-
-            free(s);
+            pthread_mutex_unlock(&(__fd->sendTableLock));
+            sleep(WAITTIME);
+            pthread_mutex_lock(&(__fd->sendTableLock));
         }
+        strcpy(s, queue_front(&(__fd->sendTable)));
+        pthread_mutex_unlock(&(__fd->sendTableLock));
+        int len = strlen(s);
+        int sent = 0;
+        while (sent < len)
+        {
+            char *chunk = (char *)malloc(sizeof(char) * FRAME_SIZE);
+            clear_buffer(chunk,FRAME_SIZE);
+            strnpcy(chunk, s+sent, FRAME_SIZE - 1);
+            // chunk[FRAME_SIZE-1] = '\x03';
+            chunk[FRAME_SIZE-1] = '\0';
+            int chunk_len = strlen(chunk);
+            // Handle case when remaining less than FRAME_SIZE. 
+            // Handled I guess?
+            sent += send(__fd->sock_fd, chunk, chunk_len, 0);
+        }
+        pthread_mutex_lock(&(__fd->sendTableLock));
+        queue_pop(&(__fd->sendTableLock));
+        pthread_mutex_unlock(&(__fd->sendTableLock));
     }
     return 0;
 }
@@ -131,13 +173,17 @@ ssize_t my_send(MyFD *__fd, const char *__buf, size_t __n, int __flags)
 ssize_t my_recv(MyFD *__fd, char *__buf, size_t __n, int __flags)
 {
     // pop from table
-
+    clear_buffer(__buf,__n);
+    pthread_mutex_lock(&(__fd->recvTableLock));
     while (__fd->recvTable.size == 0)
     {
+        pthread_mutex_unlock(&(__fd->recvTableLock));
         sleep(WAITTIME);
+        pthread_mutex_lock(&(__fd->recvTableLock));
     }
     strncpy(__buf, queue_front(&(__fd->recvTable)), __n);
     queue_pop(&(__fd->recvTable));
+    pthread_mutex_unlock(&(__fd->recvTableLock));
     int ret = strlen(__buf);
     return ret;
 }
