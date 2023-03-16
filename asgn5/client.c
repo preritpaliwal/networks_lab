@@ -21,7 +21,7 @@ int main()
     MyFD *sockfd;
     struct sockaddr_in serv_addr;
 
-    if ((sockfd = my_socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    if ((sockfd = my_socket(AF_INET, SOCK_MyTCP, 0)) < 0)
     {
         perror("Unable to create a MyTCP socket.");
         exit(0);

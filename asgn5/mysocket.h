@@ -4,6 +4,7 @@
 #include "queue.h"
 
 // Where to use "SOCK_MyTCP" ?
+#define SOCK_MyTCP 101
 
 typedef struct MyFD{
     int sock_fd;

@@ -17,11 +17,10 @@ void clear(char* buffer, int size)
 
 int main()
 {
-
     MyFD *sockfd;
     struct sockaddr_in cli_addr, serv_addr;
     printf("here1\n");
-    sockfd = my_socket(AF_INET, SOCK_STREAM, 0);
+    sockfd = my_socket(AF_INET, SOCK_MyTCP, 0);
     printf("here2\n");
     if (sockfd->sock_fd < 0)
     {

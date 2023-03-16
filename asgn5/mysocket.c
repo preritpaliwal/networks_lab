@@ -27,8 +27,11 @@ MyFD* initMyFD(int fd){
 }
 
 MyFD *my_socket(int __domain, int __type, int __protocol)
-{
-    return initMyFD(socket(__domain, __type, __protocol));
+{   
+    if(__type!=SOCK_MyTCP){
+        return -1;
+    }
+    return initMyFD(socket(__domain, SOCK_STREAM, __protocol));
 }
 
 void clear_buffer(char buf[],int n){
