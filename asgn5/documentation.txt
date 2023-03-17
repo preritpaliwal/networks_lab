@@ -52,3 +52,15 @@ mysocket.h mysocket.c :
         - First, a 4 second delay is given to the threads to finish their operations
         - Then, a 1 second delay is given for the threads to check the flag and terminate
         - Frees up the memory allocated for the socket structure
+
+queue.h queue.c :
+    - Implementation of the string queue data structure used in the myFD structure.
+
+makefile:
+    - A makefile to generate the library and the executables for the server and the client.
+
+server.c :
+    - a iterative echo server to test the working of this library.
+
+client.c ;
+    - a simple TCP client to test the working of this library.

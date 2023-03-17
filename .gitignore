@@ -3,3 +3,4 @@ asgn5/client
 asgn5/server
 asgn5/*.o
 asgn5/*.a
+**.tar.xz
