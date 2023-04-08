@@ -21,8 +21,8 @@ int main(){
 
     struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
-    inet_aton("127.0.0.1",&serv_addr.sin_addr);
-    serv_addr.sin_port = htons(20000);
+    inet_aton("localhost",&serv_addr.sin_addr);
+    serv_addr.sin_port = htons(7);
 
 
     if(connect(sockFD,(struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0){
@@ -35,11 +35,12 @@ int main(){
         buffer[i] = '\0';
     }
 
+    strcpy(buffer,"Message successfully received");
+    send(sockFD,buffer,strlen(buffer)+1,0);
+
     recv(sockFD,buffer,100,0);
     printf("The Time sent by server is: %s",buffer);
 
-    strcpy(buffer,"Message successfully received");
-    send(sockFD,buffer,strlen(buffer)+1,0);
 
     close(sockFD);
     return 0;

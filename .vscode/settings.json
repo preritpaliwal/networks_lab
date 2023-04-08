@@ -4,6 +4,8 @@
         "inet.h": "c",
         "in.h": "c",
         "string.h": "c",
-        "cstring": "c"
+        "cstring": "c",
+        "unistd.h": "c",
+        "ip_icmp.h": "c"
     }
 }
