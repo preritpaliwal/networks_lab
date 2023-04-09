@@ -17,6 +17,12 @@
 #define PACKET_SIZE 64
 #define MAX_HOPS 30
 
+int ttl = 1;
+char route[MAX_HOPS][20];
+double latency[MAX_HOPS];
+double bandwidth[MAX_HOPS];
+
+
 void clear(char *buffer, int SIZE)
 {
     for (int i = 0; i < SIZE; i++)
@@ -90,6 +96,98 @@ unsigned short czech_sum(unsigned short *arr, int len)
     return ~sum;
 }
 
+void getLatencyBand(int sock_fd, int hop,int N,int T){
+    struct sockaddr_in inter_addr;
+    double rtts[N];
+    for(int i =0;i<N;i++)
+    {
+        rtts[i]=1000;
+    }
+    int prevData = 1;
+    int incData = 1000;
+    for (int k = 0; k < N; k++)
+    {
+        // for (int j = 0; j < num_sizes; j++)
+        // {
+        int packet_size = 0;
+        if(k==0){
+             packet_size = sizeof(struct icmphdr);
+        }
+        else{
+            packet_size = sizeof(struct icmphdr) + prevData;
+            prevData+=incData;
+        }
+        char send_buffer[packet_size];
+        memset(send_buffer, 0, packet_size);
+        // Initialise ICMP struct for ICMP_ECHO packets
+        struct icmphdr *ICMP = (struct icmphdr *)send_buffer;
+        ICMP->type = ICMP_ECHO;
+        ICMP->code = 0;
+        ICMP->checksum = 0;
+        ICMP->un.echo.id = k+100;
+        ICMP->un.echo.sequence = 0;
+        send_buffer[packet_size-2] = k;
+
+        ICMP->checksum = czech_sum((unsigned short *)send_buffer, packet_size/sizeof(unsigned short));
+        struct sockaddr_in destination;
+        destination.sin_family = AF_INET;
+        destination.sin_addr.s_addr = inet_addr(route[hop-1]);
+
+
+        struct timeval start, end;
+
+        gettimeofday(&start, NULL);
+        if (sendto(sock_fd, send_buffer, packet_size, 0, (struct sockaddr *) &destination, sizeof(destination)) < 0)
+        {
+            perror("sendto() error");
+            exit(-1);
+        }
+        char recv_buff[packet_size+sizeof(struct iphdr)];
+        memset(recv_buff, 0, packet_size);
+        memset(&inter_addr, 0, sizeof(inter_addr));
+        int addr_len = sizeof(inter_addr);
+        if (recvfrom(sock_fd, recv_buff, packet_size, 0, (struct sockaddr *) &inter_addr, &addr_len) < 0)
+        {
+            perror("recvfrom() error");
+            // printf("could not receive the packet!!\n");
+            // continue;
+            exit(-1);
+        }
+        else
+        {
+            gettimeofday(&end, NULL);
+        }
+
+        // check if it is the same packet or not?
+        // print(send_buffer,packet_size);
+        // print(recv_buff,packet_size);
+
+        // if(send_buffer[packet_size-2]==recv_buff[packet_size-2])
+
+        double rtt = ((end.tv_sec - start.tv_sec) * 1000.0 + ((end.tv_usec - start.tv_usec) / 1000.0));
+        rtts[k] = rtt;
+        usleep(T*1000);
+        // }
+        printf("rtts[%d] = %lf ms\n",k,rtt);
+    }
+    double bndw = 0;
+    for(int i = 0;i<N-1;i++){
+        bndw += (incData*1.0)/(rtts[i+1]-rtts[i]);
+    }
+    bndw/=(N-1);
+    if(hop==1){
+        latency[hop-1] = rtts[0];
+    }
+    else{
+        latency[hop-1] = rtts[0] - latency[hop-2];
+    }
+    bandwidth[hop-1] = bndw*1000;
+    printf("Latency of the link : %lf ms\n",latency[hop-1]);
+    printf("Bandwidth of the link : %lf bps\n",bandwidth[hop-1]);
+
+
+    return;
+}
 
 
 int main(int argc, char *argv[])
@@ -144,7 +242,7 @@ int main(int argc, char *argv[])
 
     // Set timeout for recieve on socket
     struct timeval tv;
-    tv.tv_sec = 2;
+    tv.tv_sec = 5;
     tv.tv_usec = 0;
 
     if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
@@ -169,9 +267,9 @@ int main(int argc, char *argv[])
     destination.sin_family = AF_INET;
     destination.sin_addr.s_addr = IP_val;
 
-    int ttl = 1;
-    char route[MAX_HOPS][20];
     clear((char*)route, MAX_HOPS * 20);
+    clear((char*)latency,MAX_HOPS);
+    clear((char*)bandwidth,MAX_HOPS);
 
     while (1)
     {
@@ -222,12 +320,15 @@ int main(int argc, char *argv[])
         {
             printf("Last Node Reached! : %s\n", inet_ntoa(intermediate.sin_addr));
             strcpy(route[ttl-1],inet_ntoa(intermediate.sin_addr));
+            getLatencyBand(sockfd,ttl,n,T);
             break;
         }
         else if (ICMP_hdr->type == ICMP_TIME_EXCEEDED)
         {
             printf("No Time to Live : %s\n", inet_ntoa(intermediate.sin_addr));
             strcpy(route[ttl-1],inet_ntoa(intermediate.sin_addr));
+            getLatencyBand(sockfd,ttl,n,T);
+
         }
         else if (ICMP_hdr->type == ICMP_DEST_UNREACH)
         {
