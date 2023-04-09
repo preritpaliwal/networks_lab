@@ -6,6 +6,7 @@
         "string.h": "c",
         "cstring": "c",
         "unistd.h": "c",
-        "ip_icmp.h": "c"
+        "ip_icmp.h": "c",
+        "time.h": "c"
     }
 }

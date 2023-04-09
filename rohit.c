@@ -241,30 +241,37 @@ int main()
         {
             // printf("Reply received.\n");
         }
+
+        char* tmp = recv_buff;
+        printf("RECV : ");
+        for(int i=0;i<packet_size;i++){
+            printf("|%d|",tmp[i]);
+        }
+        printf("\n");
         
         struct ip *ip_hdr = (struct ip *) recv_buff;
         struct icmp *icmp_hdr = (struct icmp *) (recv_buff + (ip_hdr->ip_hl << 2));
 
         if (icmp_hdr->icmp_type == ICMP_ECHOREPLY)
         {
-            // printf("Destination reached.\n");
+            printf("Destination reached.\n");
             strcpy(path[ttl - 1], ip);
 
             printf("Hop %d: %s\n", ttl, ip);
 
-            calculate_latency_bandwidth(ttl,ip, n, T, sock_fd,sizes);
+            // calculate_latency_bandwidth(ttl,ip, n, T, sock_fd,sizes);
 
             break;
         }
         else if (icmp_hdr->icmp_type == ICMP_TIME_EXCEEDED)
         {
-            // printf("Time exceeded.\n");
+            printf("Time exceeded.\n");
             char *inter_ip = inet_ntoa(inter_addr.sin_addr);
             strcpy(path[ttl - 1], inter_ip);
 
             printf("Hop %d: %s\n", ttl, inter_ip);
 
-            calculate_latency_bandwidth(ttl,inter_ip, n, T, sock_fd,sizes);
+            // calculate_latency_bandwidth(ttl,inter_ip, n, T, sock_fd,sizes);
 
         }
         else if (icmp_hdr->icmp_type == ICMP_DEST_UNREACH)
