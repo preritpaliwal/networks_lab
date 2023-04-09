@@ -16,6 +16,15 @@
 
 #define PACKET_SIZE 64
 #define MAX_HOPS 30
+#define TIMEOUT 2
+#define NEXT_LINK_PACKETS 5
+#define NEXT_LINK_TIMEOUT 1
+
+typedef struct
+{
+    char ip[20];
+    int count;
+} ip_map;
 
 void clear(char *buffer, int SIZE)
 {
@@ -23,11 +32,11 @@ void clear(char *buffer, int SIZE)
         buffer[i] = '\0';
 }
 
-void print(char* buffer, int SIZE)
+void print_buffer(char *buffer, int SIZE)
 {
     printf("BUFFER : ");
-    for(int i=0;i<SIZE;i++)
-        printf("|%d|",buffer[i]);
+    for (int i = 0; i < SIZE; i++)
+        printf("|%d|", buffer[i]);
     printf("\n");
 }
 
@@ -90,7 +99,57 @@ unsigned short czech_sum(unsigned short *arr, int len)
     return ~sum;
 }
 
+/*
+     --------------------------------
+    |IP header|ICMP header|ICMP data|
+    --------------------------------
+*/
+void print_ICMP_packet(char *buffer, int SIZE, int sent)
+{
+    struct iphdr *IP = (struct iphdr *)buffer;
+    struct icmphdr *ICMP = (struct icmphdr *)(buffer + (IP->ihl << 2));
 
+    if (sent)
+        printf("\n==========IP HEADER[sent]===============\n");
+    else
+        printf("\n==========IP HEADER[received]===============\n");
+
+    char protocol[10];
+    if (IP->protocol == IPPROTO_ICMP)
+        strcpy(protocol, "ICMP");
+    else if (IP->protocol == IPPROTO_TCP)
+        strcpy(protocol, "TCP");
+    else if (IP->protocol == IPPROTO_UDP)
+        strcpy(protocol, "UDP");
+    else
+        strcpy(protocol, "unknown");
+
+    printf("Version: %d, IHL: %d, Type of Service: %d, Total Length: %d\n", IP->version, IP->ihl, IP->tos, IP->tot_len);
+    printf("Identification: %d,Flags: %d, Fragment Offset: %d\n", IP->id, (IP->frag_off & 0xe000), (IP->frag_off & 0x1fff));
+    printf("Time to Live: %d, Protocol: %s(%d), Header Checksum: %d\n", IP->ttl, protocol, IP->protocol, IP->check);
+    struct in_addr s, d;
+    s.s_addr = IP->saddr;
+    d.s_addr = IP->daddr;
+    printf("Source Address: %s\n", inet_ntoa(s));
+    printf("Destination Address: %s\n", inet_ntoa(d));
+
+    if (sent)
+        printf("==========ICMP HEADER[sent]==========\n");
+    else
+        printf("==========ICMP HEADER[received]==========\n");
+
+    if (ICMP->type == ICMP_ECHOREPLY)
+    {
+        printf("Type: Echo Reply(%d), Code: %d, Checksum: %d\n", ICMP->type, ICMP->code, ICMP->checksum);
+        printf("Identifier: %d, Sequence No: %d\n", ICMP->un.echo.id, ICMP->un.echo.sequence);
+    }
+    else if (ICMP->type == ICMP_TIME_EXCEEDED)
+    {
+        printf("Type: Time Exceeded(%d), Code: %d, Checksum: %d\n", ICMP->type, ICMP->code, ICMP->checksum);
+        // printf("Unused: [echo]: %d, [frag]: %d\n",ICMP->un.echo.id,ICMP->un.echo.sequence);
+    }
+    printf("\n\n");
+}
 
 int main(int argc, char *argv[])
 {
@@ -144,7 +203,7 @@ int main(int argc, char *argv[])
 
     // Set timeout for recieve on socket
     struct timeval tv;
-    tv.tv_sec = 2;
+    tv.tv_sec = TIMEOUT;
     tv.tv_usec = 0;
 
     if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
@@ -169,85 +228,111 @@ int main(int argc, char *argv[])
     destination.sin_family = AF_INET;
     destination.sin_addr.s_addr = IP_val;
 
-    int ttl = 1;
+    int loop = 1, ttl = 1;
     char route[MAX_HOPS][20];
-    clear((char*)route, MAX_HOPS * 20);
+    clear((char *)route, MAX_HOPS * 20);
 
-    while (1)
+
+    while (loop)
     {
-        printf("TTL : %d\n",ttl);
+        printf("TTL : %d\n", ttl);
         if (setsockopt(sockfd, IPPROTO_IP, IP_TTL, &(ttl), sizeof(ttl)) < 0)
         {
             perror("setsockopt TTL failed!");
             exit(EXIT_FAILURE);
         }
 
-        // printf("Send Buffer: ");
-        // for (int i = 0; i < PACKET_SIZE; i++)
-        //     printf("|%d|", send_buffer[i]);
-        // printf("\n");
+        // TODO- change id and sequnce values
+        ip_map mp[NEXT_LINK_PACKETS];
+        memset(&mp,0,sizeof(mp));
+        for(int j=0;j<NEXT_LINK_PACKETS;j++) mp[j].count=0;
+        int idx = 0;
 
-        // TODO- Get IP headers to see what socket is sending
-
-        // Send ICMP_ECHO packet
-        int nbytes = sendto(sockfd, send_buffer, PACKET_SIZE, 0, (struct sockaddr *)&destination, sizeof(destination));
-        if (nbytes < 0)
+        for (int i = 0; i < NEXT_LINK_PACKETS; i++)
         {
-            perror("sendto failed!");
-            exit(EXIT_FAILURE);
+
+            // Send ICMP_ECHO packet
+            // print_ICMP_packet(send_buffer, PACKET_SIZE, 1);
+            int nbytes = sendto(sockfd, send_buffer, PACKET_SIZE, 0, (struct sockaddr *)&destination, sizeof(destination));
+            if (nbytes < 0)
+            {
+                perror("sendto failed!");
+                exit(EXIT_FAILURE);
+            }
+
+            int intermediate_len = sizeof(intermediate);
+            memset(&intermediate, 0, intermediate_len);
+            clear(recv_buffer, PACKET_SIZE);
+
+            nbytes = recvfrom(sockfd, recv_buffer, PACKET_SIZE, 0, (struct sockaddr *)&intermediate, &intermediate_len);
+            if (nbytes < 0)
+            {
+                perror("recvfrom failed!");
+                exit(EXIT_FAILURE);
+            }
+            // print_ICMP_packet(recv_buffer, PACKET_SIZE, 0);
+            struct iphdr *IP_packet = (struct iphdr *)recv_buffer;
+            struct icmphdr *ICMP_hdr = (struct icmphdr *)(recv_buffer + (IP_packet->ihl * 2 * 2));
+            if (ICMP_hdr->type == ICMP_ECHOREPLY)
+            {
+                printf("Last Node Reached! : %s\n", inet_ntoa(intermediate.sin_addr));
+                strcpy(route[ttl - 1], inet_ntoa(intermediate.sin_addr));
+                
+                loop = 0;
+                break;
+            }
+            else if (ICMP_hdr->type == ICMP_TIME_EXCEEDED)
+            {
+                // printf("No Time to Live : %s\n", inet_ntoa(intermediate.sin_addr));
+                int j=0;
+                for(j=0;j<idx;j++){
+                    if(!strcmp(mp[j].ip,inet_ntoa(intermediate.sin_addr))){
+                        mp[j].count++;
+                        break;
+                    }
+                }
+                if(j == idx){
+                    strcpy(mp[j].ip,inet_ntoa(intermediate.sin_addr));
+                    mp[j].count = 1;
+                    idx++;
+                }
+            }
+            else if (ICMP_hdr->type == ICMP_DEST_UNREACH)
+            {
+                printf("NO KNOW! : %s\n", inet_ntoa(intermediate.sin_addr));
+            }
+            else
+            {
+                printf("ICMP header type : %d\n", ICMP_hdr->type);
+                printf("IP IHL : %d\n", IP_packet->ihl);
+                break;
+            }
+
+            sleep(NEXT_LINK_TIMEOUT); 
+        }
+        
+        if(!loop) continue;
+
+        int max_selected_link_idx = -1, max_count = -1;
+        for(int i=0;i<idx;i++){
+            if(mp[i].count > max_count){
+                max_count = mp[i].count;
+                max_selected_link_idx = i;
+            }
         }
 
-        int intermediate_len = sizeof(intermediate);
-        memset(&intermediate, 0, intermediate_len);
-        clear(recv_buffer,PACKET_SIZE);
-
-        nbytes = recvfrom(sockfd, recv_buffer, PACKET_SIZE, 0, (struct sockaddr *)&intermediate, &intermediate_len);
-        if (nbytes < 0)
-        {
-            perror("recvfrom failed!");
-            exit(EXIT_FAILURE);
-        }
-
-        struct iphdr* IP_packet = (struct iphdr *) recv_buffer;
-
-
-
-
-        /*
-        |IP header|ICMP header|ICMP data|
-        */
-
-        struct icmphdr *ICMP_hdr = (struct icmphdr *)(recv_buffer + (IP_packet->ihl * 2 * 2));
-        if (ICMP_hdr->type == ICMP_ECHOREPLY)
-        {
-            printf("Last Node Reached! : %s\n", inet_ntoa(intermediate.sin_addr));
-            strcpy(route[ttl-1],inet_ntoa(intermediate.sin_addr));
-            break;
-        }
-        else if (ICMP_hdr->type == ICMP_TIME_EXCEEDED)
-        {
-            printf("No Time to Live : %s\n", inet_ntoa(intermediate.sin_addr));
-            strcpy(route[ttl-1],inet_ntoa(intermediate.sin_addr));
-        }
-        else if (ICMP_hdr->type == ICMP_DEST_UNREACH)
-        {
-            printf("NO KNOW! : %s\n", inet_ntoa(intermediate.sin_addr));
-        }
-        else
-        {
-            printf("ICMP header type : %d\n",ICMP_hdr->type);
-            printf("IP IHL : %d\n",IP_packet->ihl);
-            break;
-        }
+        printf("IP: %s is the most frequently selected link with count = %d.\n",mp[max_selected_link_idx].ip,max_count);
+        strcpy(route[ttl-1],mp[max_selected_link_idx].ip);
 
         ttl++;
     }
 
-
     printf("Path followed by Traceroute: \n");
-    for(int i=0;route[i][0] != '\0';i++){
-        printf("%d) %s\n",i+1,route[i]);
-    } 
+    for (int i = 0; route[i][0] != '\0'; i++)
+    {
+        printf("%d) %s\n", i + 1, route[i]);
+    }
 
+    close(sockfd);
     return 0;
 }
