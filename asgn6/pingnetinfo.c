@@ -1,7 +1,8 @@
-// STUDY ICMP TO WRITE THIS
-
-// two threads - one for sending, one for receiving
-// save time of sending and use that to calculate RTT after receiving
+/*
+Networks Lab Assigment 6
+Vibhu (20CS10072)
+Prerit Paliwal (20CS10046)
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <netdb.h>
@@ -16,7 +17,7 @@
 
 #define PACKET_SIZE 64
 #define MAX_HOPS 30
-#define TIMEOUT 2
+#define TIMEOUT 5
 #define NEXT_LINK_PACKETS 5
 #define NEXT_LINK_TIMEOUT 0.001
 
@@ -112,39 +113,44 @@ unsigned short czech_sum(unsigned short *arr, int len)
 */
 void print_ICMP_packet(char *buffer, int SIZE, int sent)
 {
-    struct iphdr *IP = (struct iphdr *)buffer;
-    struct icmphdr *ICMP = (struct icmphdr *)(buffer + (IP->ihl << 2));
+    struct icmphdr *ICMP = (struct icmphdr *)buffer;
 
-    if (sent)
-        printf("\n==========IP HEADER[sent]===============\n");
-    else
+    if (!sent){
+    
+        struct iphdr *IP = (struct iphdr *)buffer;
+        ICMP = (struct icmphdr *)(buffer + (IP->ihl << 2));
+        
         printf("\n==========IP HEADER[received]===============\n");
+        char protocol[10];
+        if (IP->protocol == IPPROTO_ICMP)
+            strcpy(protocol, "ICMP");
+        else if (IP->protocol == IPPROTO_TCP)
+            strcpy(protocol, "TCP");
+        else if (IP->protocol == IPPROTO_UDP)
+            strcpy(protocol, "UDP");
+        else
+            strcpy(protocol, "unknown");
 
-    char protocol[10];
-    if (IP->protocol == IPPROTO_ICMP)
-        strcpy(protocol, "ICMP");
-    else if (IP->protocol == IPPROTO_TCP)
-        strcpy(protocol, "TCP");
-    else if (IP->protocol == IPPROTO_UDP)
-        strcpy(protocol, "UDP");
-    else
-        strcpy(protocol, "unknown");
-
-    printf("Version: %d, IHL: %d, Type of Service: %d, Total Length: %d\n", IP->version, IP->ihl, IP->tos, IP->tot_len);
-    printf("Identification: %d,Flags: %d, Fragment Offset: %d\n", IP->id, (IP->frag_off & 0xe000), (IP->frag_off & 0x1fff));
-    printf("Time to Live: %d, Protocol: %s(%d), Header Checksum: %d\n", IP->ttl, protocol, IP->protocol, IP->check);
-    struct in_addr s, d;
-    s.s_addr = IP->saddr;
-    d.s_addr = IP->daddr;
-    printf("Source Address: %s\n", inet_ntoa(s));
-    printf("Destination Address: %s\n", inet_ntoa(d));
+        printf("Version: %d, IHL: %d, Type of Service: %d, Total Length: %d\n", IP->version, IP->ihl, IP->tos, IP->tot_len);
+        printf("Identification: %d,Flags: %d, Fragment Offset: %d\n", IP->id, (IP->frag_off & 0xe000), (IP->frag_off & 0x1fff));
+        printf("Time to Live: %d, Protocol: %s(%d), Header Checksum: %d\n", IP->ttl, protocol, IP->protocol, IP->check);
+        struct in_addr s, d;
+        s.s_addr = IP->saddr;
+        d.s_addr = IP->daddr;
+        printf("Source Address: %s\n", inet_ntoa(s));
+        printf("Destination Address: %s\n", inet_ntoa(d));
+    }
 
     if (sent)
         printf("==========ICMP HEADER[sent]==========\n");
     else
         printf("==========ICMP HEADER[received]==========\n");
 
-    if (ICMP->type == ICMP_ECHOREPLY)
+    if(ICMP->type == ICMP_ECHO){
+        printf("Type: Echo Request(%d), Code: %d, Checksum: %d\n", ICMP->type, ICMP->code, ICMP->checksum);
+        printf("Identifier: %d, Sequence No: %d\n", ICMP->un.echo.id, ICMP->un.echo.sequence);
+    }
+    else if (ICMP->type == ICMP_ECHOREPLY)
     {
         printf("Type: Echo Reply(%d), Code: %d, Checksum: %d\n", ICMP->type, ICMP->code, ICMP->checksum);
         printf("Identifier: %d, Sequence No: %d\n", ICMP->un.echo.id, ICMP->un.echo.sequence);
@@ -187,7 +193,6 @@ void getLatencyBand(int sock_fd, int hop,int N,int T){
         ICMP->checksum = 0;
         ICMP->un.echo.id = k+100;
         ICMP->un.echo.sequence = 0;
-        send_buffer[packet_size-2] = k;
 
         ICMP->checksum = czech_sum((unsigned short *)send_buffer, packet_size/sizeof(unsigned short));
         struct sockaddr_in destination;
@@ -210,9 +215,8 @@ void getLatencyBand(int sock_fd, int hop,int N,int T){
         if (recvfrom(sock_fd, recv_buff, packet_size, 0, (struct sockaddr *) &inter_addr, &addr_len) < 0)
         {
             perror("recvfrom() error");
-            // printf("could not receive the packet!!\n");
-            // continue;
-            exit(-1);
+            printf("could not receive the packet!!\n");
+            continue;
         }
         else
         {
@@ -321,7 +325,7 @@ int main(int argc, char *argv[])
     ICMP->type = ICMP_ECHO;
     ICMP->code = 0;
     ICMP->checksum = 0;
-    ICMP->un.echo.id = 12;
+    ICMP->un.echo.id = (getpid() & 0xFFFF);
     ICMP->un.echo.sequence = 0;
     ICMP->checksum = czech_sum((unsigned short *)send_buffer, PACKET_SIZE);
 
@@ -353,7 +357,7 @@ int main(int argc, char *argv[])
         {
 
             // Send ICMP_ECHO packet
-            // print_ICMP_packet(send_buffer, PACKET_SIZE, 1);
+            print_ICMP_packet(send_buffer, PACKET_SIZE, 1);
             int nbytes = sendto(sockfd, send_buffer, PACKET_SIZE, 0, (struct sockaddr *)&destination, sizeof(destination));
             if (nbytes < 0)
             {
@@ -371,7 +375,7 @@ int main(int argc, char *argv[])
                 perror("recvfrom failed!");
                 exit(EXIT_FAILURE);
             }
-            // print_ICMP_packet(recv_buffer, PACKET_SIZE, 0);
+            print_ICMP_packet(recv_buffer, PACKET_SIZE, 0);
             struct iphdr *IP_packet = (struct iphdr *)recv_buffer;
             struct icmphdr *ICMP_hdr = (struct icmphdr *)(recv_buffer + (IP_packet->ihl * 2 * 2));
             if (ICMP_hdr->type == ICMP_ECHOREPLY)
